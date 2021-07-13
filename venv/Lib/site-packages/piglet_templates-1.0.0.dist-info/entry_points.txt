@@ -1,0 +1,5 @@
+[babel.extractors]
+piglet = piglet.i18n:extract
+piglet_html = piglet.i18n:extract_html
+piglet_text = piglet.i18n:extract_text
+

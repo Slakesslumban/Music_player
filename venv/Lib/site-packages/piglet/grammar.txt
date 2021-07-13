@@ -1,0 +1,46 @@
+# Copyright 2016 Oliver Cope
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name = <(letterOrDigit | '-')+>
+qname = <(name ':')* name>:n
+
+open_tag = ('<' qname:n <ws>:space attribute*:attrs '>') -> OpenTag(qname=n, space=space, attrs=attrs)
+close_tag = ('</' qname:n '>') -> CloseTag(qname=n)
+open_close_tag = ('<' qname:n <ws>:space attribute*:attrs '/>') -> OpenCloseTag(qname=n, space=space, attrs=attrs)
+
+
+processing_instruction = ('<?' 
+                         name:target 
+                         <ws (~'?>' anything)*>:content 
+                         '?>') -> PI(target=target, content=content)
+
+declaration = (<'<!' <(~'>' anything)*>:content '>'>) -> Declaration(content=content)
+cdata = '<![CDATA[' <(~']]>' anything)*>:content ']]>' -> CDATA(content=content)
+
+cdata_open_tag = ('<' ('script' | 'style'):n <ws>:space attribute*:attrs '>') -> OpenTag(qname=n, space=space, attrs=attrs)
+cdata_close_tag = ('</' ('script' | 'style'):n '>') -> CloseTag(qname=n)
+implicit_cdata = cdata_open_tag:open <(~cdata_close_tag anything)*>:content cdata_close_tag:close -> [open, Text(content=content, cdata=True), close]
+
+comment = '<!--' <(~'-->' anything)*>:content '-->' -> Comment(content=content)
+
+entity = alpha_entity | numeric_entity
+alpha_entity = <('&' letter+ ';')>:x -> Entity(reference=x)
+numeric_entity = <('&#' digit+ ';')>:x -> Entity(reference=x)
+text = <(~('<' | '&') anything)+>:x -> Text(content=x)
+
+attribute = qname:k <ws>:space1 token('=') <ws>:space2 quotedString:v <ws>:space3 -> (k, Attribute(name=k, value=v[0], quote=v[1], space1=space1, space2=space2, space3=space3))
+quote = ('"' | '\'')
+quotedString = (quote:q <(~exactly(q) anything)*>:xs exactly(q)) -> (xs, q)
+
+html = (text | implicit_cdata | open_tag | close_tag | open_close_tag | entity | comment | cdata | declaration | processing_instruction)*

@@ -1,0 +1,28 @@
+# Copyright 2016 Oliver Cope
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+quote = ('"' | '\'')
+quotedString = (quote:q <(~exactly(q) anything)*>:xs exactly(q)) -> QuotedString(content=xs, quote=q)
+
+argstr <(~(quote | wscontrol '%}') anything)+>:x -> x
+args = (quotedString | argstr)*
+
+open_directive_name = 'for' | 'if' | 'extends' | 'block' | 'def' | 'import' | 'include' | 'with' | 'choose' | 'when' | 'else' | 'transname' | 'trans' 
+end_directive_name = 'end' open_directive_name | 'end'
+directive_name = open_directive_name | end_directive_name
+
+wscontrol = ('-' | '+')?
+directive = '{%' wscontrol:ws_before <ws>:space1 directive_name:name <ws>:space2 args:args wscontrol:ws_after '%}' -> Statement(name=name, args=args, space1=space1, space2=space2, ws_before=ws_before, ws_after=ws_after)
+text = <(~'{%' anything)+>:s -> Text(content=s, cdata=True)
+template = (text | directive)*
